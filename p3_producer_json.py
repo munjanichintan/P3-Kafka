@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
     for i in range(10):
         event = dict()
-        event["order_id"] = i
+        event["order_id"] = i+1
         event["customer_id"], customer_details = random.choice(list(customer.items()))
         event["customer_name"], event["country"], event["city"] = customer_details[0], customer_details[1], customer_details[2] 
         event["product_id"], product_details = random.choice(list(product.items()))
@@ -91,5 +91,4 @@ if __name__ == '__main__':
 
         producer.send(KAFKA_TOPIC_NAME_CONS, value=event)
         sleep(2)
-        # print(event)
-        # print('\n')
+        print(event)

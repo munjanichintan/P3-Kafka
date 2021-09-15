@@ -5,8 +5,9 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 import time
 
-kafka_topic_name = "p3-topic"
+kafka_topic_name = "demo1"
 kafka_bootstrap_servers = 'localhost:9092'
+card_topic_name = 'card1'
 
 if __name__ == "__main__":
     print("Stream Data Processing Application Started ...")
@@ -25,7 +26,7 @@ if __name__ == "__main__":
         .format("kafka") \
         .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
         .option("subscribe", kafka_topic_name) \
-        .option("startingOffsets", "earliest") \
+        .option("startingOffsets", "latest") \
         .load()
 
     print('*****Streaming schema*****')
@@ -57,45 +58,47 @@ if __name__ == "__main__":
     print('*****DataFrame Schema*****')
     orders_df2.printSchema()
 
-    print("==========Normal DataFrame==========")
-    od_df = orders_df2.writeStream \
-        .format("console") \
-        .outputMode("append") \
-        .start()
-
-    # od_card = orders_df2.filter("payment_type=='Card'")
-
-    # od_card1 = od_card.withColumn("key", lit(100)) \
-    #                     .withColumn("value", concat(lit("{'order_id': '"), col('order_id').cast("string"),
-    #                                                 lit("', 'customer_id': '"), col('customer_id').cast("string"),
-    #                                                 lit("', 'customer_name': '"), col('customer_name'),
-    #                                                 lit("', 'country': '"), col('country'),
-    #                                                 lit("', 'city': '"), col('city'),
-    #                                                 lit("', 'product_id': '"), col('product_id').cast("string"),
-    #                                                 lit("', 'product_name': '"), col('product_name'),
-    #                                                 lit("', 'product_category': '"), col('product_category'),
-    #                                                 lit("', 'payment_type': '"), col('payment_type'),
-    #                                                 lit("', 'qty': '"), col('qty').cast("string"),
-    #                                                 lit("', 'price': '"), col('price').cast("string"),
-    #                                                 lit("', 'order_datetime': '"), col('order_datetime'),
-    #                                                 lit("', 'ecommerce_website_name': '"), col('ecommerce_website_name'),
-    #                                                 lit("', 'payment_txn_id': '"), col('payment_txn_id'),
-    #                                                 lit("', 'payment_txn_status': '"), col('payment_txn_status'),
-    #                                                 lit("', 'failure_reason': '"), col('failure_reason'), lit("'}")
-    #                                                 ))
-
-    # trans_detail_write_stream_1 = od_card1 \
-    #     .selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)") \
-    #     .writeStream \
-    #     .format("kafka") \
-    #     .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
-    #     .option("topic", card_topic_name) \
-    #     .trigger(processingTime='1 seconds') \
-    #     .outputMode("update") \
-    #     .option("checkpointLocation", "file:///home/hdoop/tmp/py_checkpoint") \
+    # print("==========Normal DataFrame==========")
+    # od_df = orders_df2.writeStream \
+    #     .format("console") \
+    #     .outputMode("append") \
     #     .start()
 
-    # od_card1.printSchema()
+    od_card = orders_df2.filter("payment_type=='Card'")
+
+    od_card1 = od_card.withColumn("key", lit(100)) \
+                        .withColumn("value", concat(lit("{'order_id': '"), col('order_id').cast("string"),
+                                                    lit("', 'customer_id': '"), col('customer_id').cast("string"),
+                                                    lit("', 'customer_name': '"), col('customer_name'),
+                                                    lit("', 'country': '"), col('country'),
+                                                    lit("', 'city': '"), col('city'),
+                                                    lit("', 'product_id': '"), col('product_id').cast("string"),
+                                                    lit("', 'product_name': '"), col('product_name'),
+                                                    lit("', 'product_category': '"), col('product_category'),
+                                                    lit("', 'payment_type': '"), col('payment_type'),
+                                                    lit("', 'qty': '"), col('qty').cast("string"),
+                                                    lit("', 'price': '"), col('price').cast("string"),
+                                                    lit("', 'order_datetime': '"), col('order_datetime'),
+                                                    lit("', 'ecommerce_website_name': '"), col('ecommerce_website_name'),
+                                                    lit("', 'payment_txn_id': '"), col('payment_txn_id'),
+                                                    lit("', 'payment_txn_status': '"), col('payment_txn_status'),
+                                                    lit("', 'failure_reason': '"), col('failure_reason'), lit("'}")
+                                                    ))
+
+    od_card1.printSchema()
+
+    trans_detail_write_stream_1 = od_card1 \
+        .selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)") \
+        .writeStream \
+        .format("kafka") \
+        .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
+        .option("topic", card_topic_name) \
+        .trigger(processingTime='1 seconds') \
+        .outputMode("update") \
+        .option("checkpointLocation", "file:///home/hdoop/tmp/py_checkpoint") \
+        .start()
+
+    trans_detail_write_stream_1.awaitTermination()
 
     # trans_detail_write_stream = od_card1 \
     #     .writeStream \
@@ -107,24 +110,18 @@ if __name__ == "__main__":
 
     # trans_detail_write_stream.awaitTermination()
 
-    od_parquet = orders_df2.withWatermark("order_datetime", "10 minutes") \
-        .groupBy("city", "payment_type", window("order_datetime", "10 minutes")) \
-        .agg(sum(col('qty')*col('price')).alias('total_amount'), \
-        count('order_id').alias('total_orders')) \
-        .select('city', 'payment_type', 'total_amount', 'total_orders')
+    # od_parquet = orders_df2.withWatermark("order_datetime", "2 seconds") \
+    #     .groupBy("city", "payment_type", window("order_datetime", "2 seconds")) \
+    #     .agg(sum(col('qty')*col('price')).alias('total_amount'), \
+    #     count('order_id').alias('total_orders')) \
+    #     .select('city', 'payment_type', 'total_amount', 'total_orders')
 
-    # od_df1 = orders_df2.groupBy('city', 'payment_type') \
-    #     .agg(count('order_id').alias("total_order"), sum(col('qty')*col('price')).alias("total_amount"))
-
-    # od_df1.printSchema()
-
-    od_parquet1 = od_parquet.writeStream \
-        .format('parquet') \
-        .outputMode('append') \
-        .option('path', 'p3/output') \
-        .trigger(processingTime='10 minutes') \
-        .option("checkpointLocation", "file:///home/hdoop/tmp/parquet_checkpoint") \
-        .start()
+    # od_parquet1 = od_parquet.writeStream \
+    #     .format('parquet') \
+    #     .outputMode('append') \
+    #     .option('path', 'p3/output') \
+    #     .option("checkpointLocation", "file:///home/hdoop/tmp/parquet_checkpoint") \
+    #     .start()
 
     # od_df = od_df1.writeStream \
     #     .trigger(processingTime='20 seconds')\
@@ -132,43 +129,5 @@ if __name__ == "__main__":
     #     .format("console") \
     #     .start()
 
-    od_parquet1.awaitTermination()
-    od_df.awaitTermination()
-
-    # transaction_details = od_df.select('order_id', 'city', (col('qty')*(col('price'))).alias('total_price'))
-
-    # transaction_details.printSchema()
-
-    # print("=====Transaction DataFrame=====")
-    # td_df1 = transaction_details.writeStream \
-    #     .format("console") \
-    #     .outputMode("append") \
-    #     .start()
-
-    # card_df = od_df.filter("payment_type == 'Card'")
-
-    # card_producer = card_df.withColumn("key", lit(100)) \
-    #     .withColumn("value", concat(card_df.select("*").filter("payment_type == 'Card'")))
-
-    # Write key-value data from a DataFrame to a specific Kafka topic specified in an option
-    # trans_detail_write_stream_1 = card_producer \
-    #     .selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)") \
-    #     .writeStream \
-    #     .format("kafka") \
-    #     .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
-    #     .option("topic", card_topic_name) \
-    #     .trigger(processingTime='1 seconds') \
-    #     .outputMode("update") \
-    #     .option("checkpointLocation", "file:///home/hdoop/tmp/py_checkpoint") \
-    #     .start()
-
-    # print("==========Card DataFrame==========")
-    # card_df1 = card_df.writeStream \
-    #     .format("console") \
-    #     .outputMode("append") \
-    #     .start()
-
+    # od_parquet1.awaitTermination()
     # od_df.awaitTermination()
-    # od_df2.awaitTermination()
-    # td_df1.awaitTermination()
-    # card_df1.awaitTermination()
